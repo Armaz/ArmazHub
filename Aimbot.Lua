@@ -6,11 +6,12 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 -- CONFIGURATION
-local HIT_CHANCE = 0.80 -- Direct 80% decimal value representation
+local HIT_CHANCE = 0.80 -- Direct 80% accuracy representation
+local TICK_RATE = 0.1   -- Checks every 0.1 seconds whether to lock on or off
 
--- Engagement trackers
-local currentTarget = nil
-local shouldHitCurrentTarget = true
+-- State variables for the timer logic
+local isLockActive = true
+local lastTickTime = 0
 
 -- Helper function to determine if teams are active in the game
 local function areTeamsActive()
@@ -60,23 +61,23 @@ RunService.RenderStepped:Connect(function()
         local targetHead = getClosestPlayerHead()
         
         if targetHead then
-            -- Evaluate target locking states based on engagement persistence
-            if currentTarget ~= targetHead then
-                currentTarget = targetHead
-                -- Calculates probability against the 0.80 value directly
-                shouldHitCurrentTarget = (math.random() <= HIT_CHANCE)
+            -- TIMER CHECK: Has 0.1 seconds passed since the last roll?
+            local currentTime = os.clock()
+            if currentTime - lastTickTime >= TICK_RATE then
+                lastTickTime = currentTime
+                -- Roll an independent 80% accuracy chance for this 0.1s window
+                isLockActive = (math.random() <= HIT_CHANCE)
             end
             
-            if shouldHitCurrentTarget then
-                -- 80% Hit Case: Perfect central lock
+            -- If the 80% active state roll passes, lock onto the head instantly. 
+            -- If it lands on the 20% failure state, it drops the lock, letting you move naturally.
+            if isLockActive then
                 Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
-            else
-                -- 20% Miss Case: Offset orientation targeting overhead positioning space
-                local missOffset = Vector3.new(0, 2.5, 0)
-                Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position + missOffset)
             end
         else
-            currentTarget = nil
+            -- Reset state if no target is near
+            lastTickTime = 0
+            isLockActive = true
         end
     end
 end)
