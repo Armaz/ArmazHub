@@ -6,7 +6,7 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 -- CONFIGURATION
-local ACCURACY_RATE = 0.95 -- Strict 80% hit accuracy decimal threshold
+local ACCURACY_RATE = 0.95 -- Hit accuracy decimal threshold
 
 -- Helper function to determine if teams are active in the game
 local function areTeamsActive()
@@ -20,9 +20,37 @@ local function fireEquippedTool()
     if character then
         local tool = character:FindFirstChildOfClass("Tool")
         if tool then
-            tool:Activate() -- Activates weapon internally bypassing mechanical driver layers
+            tool:Activate()
         end
     end
+end
+
+-- Checks if a target's head is visible on screen and not blocked by walls
+local function isPlayerVisible(targetHead)
+    if not targetHead then return false end
+    
+    -- 1. SCREEN VISIBILITY CHECK (Ensure they are actually on the screen)
+    local screenPosition, onScreen = Camera:WorldToViewportPoint(targetHead.Position)
+    if not onScreen then return false end
+    
+    -- 2. WALL CHECK (Raycast from camera to enemy head)
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    -- Ignore your own character so you don't block your own raycast
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+    raycastParams.IgnoreWater = true
+    
+    local origin = Camera.CFrame.Position
+    local direction = targetHead.Position - origin
+    
+    local raycastResult = workspace:Raycast(origin, direction, raycastParams)
+    
+    -- If the raycast hits nothing, or it hits the target's character part, they are visible
+    if not raycastResult or raycastResult.Instance:IsDescendantOf(targetHead.Parent) then
+        return true
+    end
+    
+    return false -- Hitting a wall or obstacle instead
 end
 
 local function getClosestPlayerHead()
@@ -55,12 +83,15 @@ local function getClosestPlayerHead()
                 local humanoid = player.Character:FindFirstChild("Humanoid")
                 
                 if head and humanoid and humanoid.Health > 0 then
-                    local character = LocalPlayer.Character
-                    if character and character:FindFirstChild("HumanoidRootPart") then
-                        local distance = (character.HumanoidRootPart.Position - head.Position).Magnitude
-                        if distance < shortestDistance then
-                            shortestDistance = distance
-                            closestHead = head
+                    -- VISIBILITY & WALL CHECK PIPELINE
+                    if isPlayerVisible(head) then
+                        local character = LocalPlayer.Character
+                        if character and character:FindFirstChild("HumanoidRootPart") then
+                            local distance = (character.HumanoidRootPart.Position - head.Position).Magnitude
+                            if distance < shortestDistance then
+                                shortestDistance = distance
+                                closestHead = head
+                            end
                         end
                     end
                 end
@@ -79,10 +110,8 @@ RunService.RenderStepped:Connect(function()
             -- 1. FLAWLESS 100% CONTINUOUS CAMERA HARD LOCK ON (Glued tracking)
             Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
             
-            -- 2. 80% ACCURACY AUTOFIT TRIGGERBOT ENGINE
-            -- Calculates a probability threshold against the 0.80 configuration marker
+            -- 2. ACCURACY AUTOFIT TRIGGERBOT ENGINE
             if math.random() <= ACCURACY_RATE then
-                -- 80% Case: Engine passes activation command to fire weapon tool
                 fireEquippedTool()
             end
         end
