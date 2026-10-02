@@ -1,14 +1,9 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local Teams = game:GetService("Teams") -- Reference the Teams service
+local Teams = game:GetService("Teams")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
-
--- CONFIGURATION
-local MAX_DISTANCE = 500
-local SMOOTHNESS = 0.15 
-local JITTER_STRENGTH = 0.01
 
 -- Helper function to determine if teams are active in the game
 local function areTeamsActive()
@@ -18,7 +13,8 @@ end
 
 local function getClosestPlayerHead()
     local closestHead = nil
-    local shortestDistance = MAX_DISTANCE
+    -- Using math.huge so there is absolutely no max distance limit
+    local shortestDistance = math.huge
     local teamsExist = areTeamsActive()
     
     for _, player in pairs(Players:GetPlayers()) do
@@ -27,7 +23,6 @@ local function getClosestPlayerHead()
             -- DYNAMIC TEAM CHECK
             local shouldTarget = true
             if teamsExist then
-                -- If teams exist, only target them if they are on a different team
                 if LocalPlayer.Team and player.Team and LocalPlayer.Team == player.Team then
                     shouldTarget = false
                 end
@@ -38,7 +33,6 @@ local function getClosestPlayerHead()
                 local humanoid = player.Character:FindFirstChild("Humanoid")
                 
                 if head and humanoid and humanoid.Health > 0 then
-                    -- Get distance from your character to the target
                     local character = LocalPlayer.Character
                     if character and character:FindFirstChild("HumanoidRootPart") then
                         local distance = (character.HumanoidRootPart.Position - head.Position).Magnitude
@@ -54,23 +48,14 @@ local function getClosestPlayerHead()
     return closestHead
 end
 
--- This runs every frame automatically
+-- This runs every frame automatically (No smoothness, no jitter, no max distance)
 RunService.RenderStepped:Connect(function()
     if LocalPlayer.Character then
         local targetHead = getClosestPlayerHead()
         
         if targetHead then
-            -- 1. CALCULATE DIRECTION WITH JITTER
-            local jitter = Vector3.new(
-                math.random(-100, 100) / 1000 * JITTER_STRENGTH,
-                math.random(-100, 100) / 1000 * JITTER_STRENGTH,
-                math.random(-100, 100) / 1000 * JITTER_STRENGTH
-            )
-            
-            local targetCFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position + jitter)
-
-            -- 2. SMOOTH ROTATION (LERP)
-            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, SMOOTHNESS)
+            -- INSTANT HARD LOCK ON (Perfect center lock, no jitter)
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
         end
     end
 end)
