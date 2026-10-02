@@ -14,8 +14,11 @@ local function getClosestPlayerHead()
     local shortestDistance = MAX_DISTANCE
     
     for _, player in pairs(Players:GetPlayers()) do
-        -- TEAM CHECK: Ensure the player is not you and not on your team
-        if player ~= LocalPlayer and player.Team ~= LocalPlayer.Team and player.Character then
+        -- OPPOSING TEAM CHECK
+        -- 1. Ensure the player isn't you
+        -- 2. Ensure they actually have a team assigned
+        -- 3. Ensure their team is different from your team
+        if player ~= LocalPlayer and player.Team and LocalPlayer.Team and player.Team ~= LocalPlayer.Team and player.Character then
             local head = player.Character:FindFirstChild("Head")
             local humanoid = player.Character:FindFirstChild("Humanoid")
             
