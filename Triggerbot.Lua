@@ -1,10 +1,13 @@
 local Players = game:GetService("Players")
-local RunService = service or game:GetService("RunService")
+local RunService = game:GetService("RunService")
 local Teams = game:GetService("Teams")
-local UserInputService = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager") -- Hardware simulation service
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+
+-- CONFIGURATION
+local ACCURACY_RATE = 0.80 -- Strict 80% hit accuracy decimal threshold
 
 -- Helper function to determine if teams are active in the game
 local function areTeamsActive()
@@ -12,73 +15,77 @@ local function areTeamsActive()
     return #teamList > 0
 end
 
--- Safely fires or releases the equipped tool
-local function setToolActive(state)
-    local character = LocalPlayer.Character
-    if character then
-        local tool = character:FindFirstChildOfClass("Tool")
-        if tool then
-            if state then
-                tool:Activate()
-            else
-                -- Tools automatically handle release or stop firing on deactivation hooks, 
-                -- but we can let go or stop interacting depending on the custom tool implementation.
-            end
-        end
-    end
+-- BYPASS TRIGGER: Simulates a physical hardware mouse click at the center of the screen
+local function fireWeaponBypass()
+    local viewportSize = Camera.ViewportSize
+    local centerX = viewportSize.X / 2
+    local centerY = viewportSize.Y / 2
+    
+    -- SendMouseButtonEvent parameters: (X, Y, ButtonType [0 = LeftClick], isDown, gameProcessedEvent, clickCount)
+    VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 1)
+    task.wait(0.01) -- Microscopic delay to let the engine register the press
+    VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, game, 1)
 end
 
--- Checks if the mouse is hovering over a valid target's body part
-local function isCursorOverValidTarget()
-    local mouse = LocalPlayer:GetMouse()
-    local target = mouse.Target
-    
-    if not target or not target.Parent then
-        return false
-    end
-    
-    local characterHit = target.Parent
-    -- Handle models where body parts might be nested deeper (e.g., accessories or custom characters)
-    local playerHit = Players:GetPlayerFromCharacter(characterHit) or Players:GetPlayerFromCharacter(characterHit.Parent)
-    
-    if not playerHit or playerHit == LocalPlayer then
-        return false
-    end
-    
-    local humanoid = characterHit:FindFirstChildOfClass("Humanoid") or characterHit.Parent:FindFirstChildOfClass("Humanoid")
-    if not humanoid or humanoid.Health <= 0 then
-        return false
-    end
-    
-    -- DYNAMIC TEAM CHECK
+local function getClosestPlayerHead()
+    local closestHead = nil
+    local shortestDistance = math.huge
     local teamsExist = areTeamsActive()
-    if teamsExist then
-        -- Check if target is on your team
-        if LocalPlayer.Team and playerHit.Team and LocalPlayer.Team == playerHit.Team then
-            return false
-        end
-        
-        -- EXCLUSION CHECK: Ignore players on teams named "Lobby" or "Neutral"
-        if playerHit.Team then
-            local teamName = playerHit.Team.Name
-            if teamName == "Lobby" or teamName == "Neutral" then
-                return false
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            
+            -- DYNAMIC TEAM CHECK
+            local shouldTarget = true
+            if teamsExist then
+                -- Check if target is on your team
+                if LocalPlayer.Team and player.Team and LocalPlayer.Team == player.Team then
+                    shouldTarget = false
+                end
+                
+                -- EXCLUSION CHECK: Ignore players on teams named "Lobby" or "Neutral"
+                if player.Team then
+                    local teamName = player.Team.Name
+                    if teamName == "Lobby" or teamName == "Neutral" then
+                        shouldTarget = false
+                    end
+                end
+            end
+            
+            if shouldTarget then
+                local head = player.Character:FindFirstChild("Head")
+                local humanoid = player.Character:FindFirstChild("Humanoid")
+                
+                if head and humanoid and humanoid.Health > 0 then
+                    local character = LocalPlayer.Character
+                    if character and character:FindFirstChild("HumanoidRootPart") then
+                        local distance = (character.HumanoidRootPart.Position - head.Position).Magnitude
+                        if distance < shortestDistance then
+                            shortestDistance = distance
+                            closestHead = head
+                        end
+                    end
+                end
             end
         end
     end
-    
-    return true
+    return closestHead
 end
 
 -- Primary execution loop running at maximum engine frame rate
 RunService.RenderStepped:Connect(function()
     if LocalPlayer.Character then
-        if isCursorOverValidTarget() then
-            -- Cursor is on a valid enemy body part; trigger the weapon
-            setToolActive(true)
-        else
-            -- Cursor is not on a valid target; release/stop firing action
-            setToolActive(false)
+        local targetHead = getClosestPlayerHead()
+        
+        if targetHead then
+            -- 1. FLAWLESS 100% CONTINUOUS CAMERA HARD LOCK ON (Glued tracking)
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
+            
+            -- 2. 80% ACCURACY AUTOFIT TRIGGERBOT ENGINE
+            if math.random() <= ACCURACY_RATE then
+                -- 80% Case: Call the hardware bypass fire method
+                task.spawn(fireWeaponBypass)
+            end
         end
     end
 end)
