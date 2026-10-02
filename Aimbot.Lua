@@ -5,6 +5,13 @@ local Teams = game:GetService("Teams")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
+-- CONFIGURATION
+local HIT_CHANCE = 80 -- 80% chance to hit the head perfectly
+
+-- Track the current target and whether this engagement is a "hit" or "miss"
+local currentTarget = nil
+local shouldHitCurrentTarget = true
+
 -- Helper function to determine if teams are active in the game
 local function areTeamsActive()
     local teamList = Teams:GetTeams()
@@ -13,7 +20,6 @@ end
 
 local function getClosestPlayerHead()
     local closestHead = nil
-    -- Using math.huge so there is absolutely no max distance limit
     local shortestDistance = math.huge
     local teamsExist = areTeamsActive()
     
@@ -48,14 +54,30 @@ local function getClosestPlayerHead()
     return closestHead
 end
 
--- This runs every frame automatically (No smoothness, no jitter, no max distance)
+-- This runs every frame automatically
 RunService.RenderStepped:Connect(function()
     if LocalPlayer.Character then
         local targetHead = getClosestPlayerHead()
         
         if targetHead then
-            -- INSTANT HARD LOCK ON (Perfect center lock, no jitter)
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
+            -- Check if we switched to a brand new target
+            if currentTarget ~= targetHead then
+                currentTarget = targetHead
+                -- Roll the 80% chance ONCE for this specific player engagement
+                shouldHitCurrentTarget = (math.random(1, 100) <= HIT_CHANCE)
+            end
+            
+            -- Lock logic based on the single roll result
+            if shouldHitCurrentTarget then
+                -- 80% Case: Flawless hard lock directly on the center of the head
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
+            else
+                -- 20% Case: Intentionally aims slightly above the head to simulate a natural miss
+                local missOffset = Vector3.new(0, 2.5, 0)
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position + missOffset)
+            end
+        else
+            currentTarget = nil
         end
     end
 end)
