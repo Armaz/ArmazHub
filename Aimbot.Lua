@@ -6,9 +6,9 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 -- CONFIGURATION
-local HIT_CHANCE = 80 -- 80% chance to hit the head perfectly
+local HIT_CHANCE = 0.80 -- Direct 80% decimal value representation
 
--- Track the current target and whether this engagement is a "hit" or "miss"
+-- Engagement trackers
 local currentTarget = nil
 local shouldHitCurrentTarget = true
 
@@ -60,19 +60,18 @@ RunService.RenderStepped:Connect(function()
         local targetHead = getClosestPlayerHead()
         
         if targetHead then
-            -- Check if we switched to a brand new target
+            -- Evaluate target locking states based on engagement persistence
             if currentTarget ~= targetHead then
                 currentTarget = targetHead
-                -- Roll the 80% chance ONCE for this specific player engagement
-                shouldHitCurrentTarget = (math.random(1, 100) <= HIT_CHANCE)
+                -- Calculates probability against the 0.80 value directly
+                shouldHitCurrentTarget = (math.random() <= HIT_CHANCE)
             end
             
-            -- Lock logic based on the single roll result
             if shouldHitCurrentTarget then
-                -- 80% Case: Flawless hard lock directly on the center of the head
+                -- 80% Hit Case: Perfect central lock
                 Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
             else
-                -- 20% Case: Intentionally aims slightly above the head to simulate a natural miss
+                -- 20% Miss Case: Offset orientation targeting overhead positioning space
                 local missOffset = Vector3.new(0, 2.5, 0)
                 Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position + missOffset)
             end
