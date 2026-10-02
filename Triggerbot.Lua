@@ -5,8 +5,8 @@ local Teams = game:GetService("Teams")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Configuration
-local SPAM_DELAY = 0.001 -- Time in seconds between clicks (lower = faster)
+-- Track firing state to prevent rapid unequip glitches
+local isFiring = false
 
 -- Helper function to determine if teams are active in the game
 local function areTeamsActive()
@@ -26,6 +26,16 @@ local function getPlayerFromTarget(targetPart)
     return nil
 end
 
+-- Stop firing safely
+local function stopFiring()
+    if isFiring then
+        isFiring = false
+        if mouse1release then
+            mouse1release()
+        end
+    end
+end
+
 -- This runs every frame automatically
 RunService.RenderStepped:Connect(function()
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") and LocalPlayer.Character.Humanoid.Health > 0 then
@@ -35,10 +45,13 @@ RunService.RenderStepped:Connect(function()
         local centerScreen = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
         local unitRay = Camera:ScreenPointToRay(centerScreen.X, centerScreen.Y)
         
-        -- Exclude your own character
+        -- WALL CHECK & SELF EXCLUSION
+        -- The raycast natively handles wall checks because it hits the FIRST solid object in its path.
+        -- If a wall is in front of the player, the raycast hits the wall instead of the player model.
         local raycastParams = RaycastParams.new()
         raycastParams.FilterType = Enum.RaycastFilterType.Exclude
         raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+        raycastParams.IgnoreWater = true
         
         local raycastResult = workspace:Raycast(unitRay.Origin, unitRay.Direction * 2000, raycastParams)
         
@@ -60,18 +73,27 @@ RunService.RenderStepped:Connect(function()
                         end
                     end
                     
-                    -- RAPID INFINITE CLICK SPAM
+                    -- AUTOMATIC HOLD-TO-FIRE LOGIC
                     if shouldFire then
-                        if mouse1press and mouse1release then
-                            mouse1press()
-                            task.wait(SPAM_DELAY)
-                            mouse1release()
-                        elseif mouse1click then
-                            mouse1click()
+                        if not isFiring then
+                            isFiring = true
+                            if mouse1press then
+                                mouse1press() -- Holds down left click safely
+                            end
                         end
+                    else
+                        stopFiring()
                     end
+                else
+                    stopFiring()
                 end
+            else
+                stopFiring()
             end
+        else
+            stopFiring()
         end
+    else
+        stopFiring()
     end
 end)
