@@ -1,14 +1,10 @@
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
+local RunService = service or game:GetService("RunService")
 local Teams = game:GetService("Teams")
-local GuiService = game:GetService("GuiService")
+local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
-
--- Input simulator setup
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local isFiring = false
 
 -- Helper function to determine if teams are active in the game
 local function areTeamsActive()
@@ -16,95 +12,73 @@ local function areTeamsActive()
     return #teamList > 0
 end
 
--- Fast player lookup from hit part
-local function getPlayerFromTarget(targetPart)
-    if not targetPart or not targetPart.Parent then return nil end
-    local player = Players:GetPlayerFromCharacter(targetPart.Parent)
-    if player then return player end
-    if targetPart.Parent.Parent then
-        player = Players:GetPlayerFromCharacter(targetPart.Parent.Parent)
-        if player then return player end
-    end
-    return nil
-end
-
--- Completely safe firing mechanics utilizing hardware level hooks
-local function startFiring()
-    if not isFiring then
-        isFiring = true
-        -- Sends a direct hardware-level press down at the center of the screen
-        local center = Camera.ViewportSize / 2
-        VirtualInputManager:SendMouseButtonEvent(center.X, center.Y, 0, true, game, 0)
+-- Safely fires or releases the equipped tool
+local function setToolActive(state)
+    local character = LocalPlayer.Character
+    if character then
+        local tool = character:FindFirstChildOfClass("Tool")
+        if tool then
+            if state then
+                tool:Activate()
+            else
+                -- Tools automatically handle release or stop firing on deactivation hooks, 
+                -- but we can let go or stop interacting depending on the custom tool implementation.
+            end
+        end
     end
 end
 
-local function stopFiring()
-    if isFiring then
-        isFiring = false
-        -- Safely releases the hardware-level click
-        local center = Camera.ViewportSize / 2
-        VirtualInputManager:SendMouseButtonEvent(center.X, center.Y, 0, false, game, 0)
+-- Checks if the mouse is hovering over a valid target's body part
+local function isCursorOverValidTarget()
+    local mouse = LocalPlayer:GetMouse()
+    local target = mouse.Target
+    
+    if not target or not target.Parent then
+        return false
     end
+    
+    local characterHit = target.Parent
+    -- Handle models where body parts might be nested deeper (e.g., accessories or custom characters)
+    local playerHit = Players:GetPlayerFromCharacter(characterHit) or Players:GetPlayerFromCharacter(characterHit.Parent)
+    
+    if not playerHit or playerHit == LocalPlayer then
+        return false
+    end
+    
+    local humanoid = characterHit:FindFirstChildOfClass("Humanoid") or characterHit.Parent:FindFirstChildOfClass("Humanoid")
+    if not humanoid or humanoid.Health <= 0 then
+        return false
+    end
+    
+    -- DYNAMIC TEAM CHECK
+    local teamsExist = areTeamsActive()
+    if teamsExist then
+        -- Check if target is on your team
+        if LocalPlayer.Team and playerHit.Team and LocalPlayer.Team == playerHit.Team then
+            return false
+        end
+        
+        -- EXCLUSION CHECK: Ignore players on teams named "Lobby" or "Neutral"
+        if playerHit.Team then
+            local teamName = playerHit.Team.Name
+            if teamName == "Lobby" or teamName == "Neutral" then
+                return false
+            end
+        end
+    end
+    
+    return true
 end
-
--- Pre-allocated raycast parameters for maximum performance (native wallcheck)
-local raycastParams = RaycastParams.new()
-raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-raycastParams.IgnoreWater = true
 
 -- Primary execution loop running at maximum engine frame rate
 RunService.RenderStepped:Connect(function()
-    if not LocalPlayer.Character or GuiService:GetOpenedPriorityGui() then 
-        stopFiring()
-        return 
-    end
-    
-    -- Ensure you are holding a tool before even trying to fire
-    local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
-    if not tool then 
-        stopFiring()
-        return 
-    end
-    
-    -- Dynamic screen centering calculation
-    local viewportSize = Camera.ViewportSize
-    local unitRay = Camera:ScreenPointToRay(viewportSize.X / 2, viewportSize.Y / 2)
-    
-    -- Update characters to ignore dynamically
-    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, tool}
-    
-    -- Raycast captures the absolute first solid physical asset hit (native wallcheck)
-    local raycastResult = workspace:Raycast(unitRay.Origin, unitRay.Direction * 5000, raycastParams)
-    
-    if raycastResult and raycastResult.Instance then
-        local targetPlayer = getPlayerFromTarget(raycastResult.Instance)
-        
-        if targetPlayer and targetPlayer ~= LocalPlayer then
-            local character = targetPlayer.Character
-            local humanoid = character and character:FindFirstChild("Humanoid")
-            
-            if humanoid and humanoid.Health > 0 then
-                -- DYNAMIC TEAM CHECK
-                local shouldFire = true
-                if areTeamsActive() then
-                    if LocalPlayer.Team and targetPlayer.Team and LocalPlayer.Team == targetPlayer.Team then
-                        shouldFire = false
-                    end
-                end
-                
-                -- HARDWARE FIRE SIMULATION
-                if shouldFire then
-                    startFiring()
-                else
-                    stopFiring()
-                end
-            else
-                stopFiring()
-            end
+    if LocalPlayer.Character then
+        if isCursorOverValidTarget() then
+            -- Cursor is on a valid enemy body part; trigger the weapon
+            setToolActive(true)
         else
-            stopFiring()
+            -- Cursor is not on a valid target; release/stop firing action
+            setToolActive(false)
         end
-    else
-        stopFiring()
     end
 end)
