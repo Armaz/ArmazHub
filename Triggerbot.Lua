@@ -5,6 +5,10 @@ local Teams = game:GetService("Teams")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
+-- Configuration
+local FIRE_RATE_DELAY = 0.03 -- Small buffer to prevent the game engine from breaking/unequipping your tool
+local isFiring = false
+
 -- Helper function to determine if teams are active in the game
 local function areTeamsActive()
     local teamList = Teams:GetTeams()
@@ -23,17 +27,17 @@ local function getPlayerFromTarget(targetPart)
     return nil
 end
 
--- Helper function to find and programmatically fire the currently equipped weapon tool
-local function fireEquippedTool()
-    local character = LocalPlayer.Character
-    if character then
-        -- Roblox weapons are "Tool" classes equipped inside the character model
-        local tool = character:FindFirstChildOfClass("Tool")
-        if tool then
-            -- Bypass mouse simulation and directly force the tool to activate in engine
-            tool:Activate() 
-        end
-    end
+-- Safely activates the tool using an isolated thread buffer
+local function safeFireTool(tool)
+    if isFiring then return end
+    isFiring = true
+    
+    -- Fire the tool natively in the engine
+    tool:Activate()
+    
+    -- Give the gun script a microscopic moment to register the shot before the next input
+    task.wait(FIRE_RATE_DELAY)
+    isFiring = false
 end
 
 -- Pre-allocated raycast parameters for maximum performance (native wallcheck)
@@ -45,12 +49,16 @@ raycastParams.IgnoreWater = true
 RunService.RenderStepped:Connect(function()
     if not LocalPlayer.Character then return end
     
+    -- Find currently equipped tool
+    local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+    if not tool then return end -- If no gun is equipped, do nothing
+    
     -- Dynamic screen centering calculation
     local viewportSize = Camera.ViewportSize
     local unitRay = Camera:ScreenPointToRay(viewportSize.X / 2, viewportSize.Y / 2)
     
     -- Update character to ignore dynamically
-    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, tool}
     
     -- Execute instantaneous wall-check raycast (Stops at the first solid physical object)
     local raycastResult = workspace:Raycast(unitRay.Origin, unitRay.Direction * 5000, raycastParams)
@@ -71,9 +79,9 @@ RunService.RenderStepped:Connect(function()
                     end
                 end
                 
-                -- DIRECT ENGINE ACTIVATION (No delay, skips mouse emulation)
+                -- EXECUTE CONTROLLED ENGINE ACTIVATION
                 if shouldFire then
-                    fireEquippedTool()
+                    task.spawn(safeFireTool, tool)
                 end
             end
         end
