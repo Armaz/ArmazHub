@@ -6,7 +6,7 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 -- CONFIGURATION
-local ACCURACY_RATE = 0.80 -- Strict 80% hit accuracy decimal threshold
+local ACCURACY_RATE = 0.95 -- Strict 80% hit accuracy decimal threshold
 
 -- Helper function to determine if teams are active in the game
 local function areTeamsActive()
@@ -36,8 +36,17 @@ local function getClosestPlayerHead()
             -- DYNAMIC TEAM CHECK
             local shouldTarget = true
             if teamsExist then
+                -- Check if target is on your team
                 if LocalPlayer.Team and player.Team and LocalPlayer.Team == player.Team then
                     shouldTarget = false
+                end
+                
+                -- EXCLUSION CHECK: Ignore players on teams named "Lobby" or "Neutral"
+                if player.Team then
+                    local teamName = player.Team.Name
+                    if teamName == "Lobby" or teamName == "Neutral" then
+                        shouldTarget = false
+                    end
                 end
             end
             
