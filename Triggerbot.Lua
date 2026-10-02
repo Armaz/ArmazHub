@@ -5,16 +5,13 @@ local Teams = game:GetService("Teams")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Track firing state to prevent rapid unequip glitches
-local isFiring = false
-
 -- Helper function to determine if teams are active in the game
 local function areTeamsActive()
     local teamList = Teams:GetTeams()
     return #teamList > 0
 end
 
--- Helper function to find a player from a hit part
+-- Fast player lookup from hit part
 local function getPlayerFromTarget(targetPart)
     if not targetPart or not targetPart.Parent then return nil end
     local player = Players:GetPlayerFromCharacter(targetPart.Parent)
@@ -26,74 +23,46 @@ local function getPlayerFromTarget(targetPart)
     return nil
 end
 
--- Stop firing safely
-local function stopFiring()
-    if isFiring then
-        isFiring = false
-        if mouse1release then
-            mouse1release()
-        end
-    end
-end
+-- Pre-allocated raycast parameters for maximum performance (no delay frame allocations)
+local raycastParams = RaycastParams.new()
+raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+raycastParams.IgnoreWater = true
 
--- This runs every frame automatically
+-- Primary execution loop running at maximum engine frame rate
 RunService.RenderStepped:Connect(function()
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") and LocalPlayer.Character.Humanoid.Health > 0 then
+    if not LocalPlayer.Character then return end
+    
+    -- Dynamic screen centering calculation
+    local viewportSize = Camera.ViewportSize
+    local unitRay = Camera:ScreenPointToRay(viewportSize.X / 2, viewportSize.Y / 2)
+    
+    -- Update characters to ignore dynamically
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+    
+    -- Raycast captures the absolute first solid physical asset hit (native wallcheck)
+    local raycastResult = workspace:Raycast(unitRay.Origin, unitRay.Direction * 5000, raycastParams)
+    
+    if raycastResult and raycastResult.Instance then
+        local targetPlayer = getPlayerFromTarget(raycastResult.Instance)
         
-        -- SCREEN CENTER RAYCAST (Detects exactly what you are aiming at)
-        local viewportSize = Camera.ViewportSize
-        local centerScreen = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
-        local unitRay = Camera:ScreenPointToRay(centerScreen.X, centerScreen.Y)
-        
-        -- WALL CHECK & SELF EXCLUSION
-        -- The raycast natively handles wall checks because it hits the FIRST solid object in its path.
-        -- If a wall is in front of the player, the raycast hits the wall instead of the player model.
-        local raycastParams = RaycastParams.new()
-        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-        raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
-        raycastParams.IgnoreWater = true
-        
-        local raycastResult = workspace:Raycast(unitRay.Origin, unitRay.Direction * 2000, raycastParams)
-        
-        if raycastResult and raycastResult.Instance then
-            local targetPart = raycastResult.Instance
-            local targetPlayer = getPlayerFromTarget(targetPart)
+        if targetPlayer and targetPlayer ~= LocalPlayer then
+            local character = targetPlayer.Character
+            local humanoid = character and character:FindFirstChild("Humanoid")
             
-            -- If aiming at a player who is alive and isn't you
-            if targetPlayer and targetPlayer ~= LocalPlayer then
-                local humanoid = targetPlayer.Character and targetPlayer.Character:FindFirstChild("Humanoid")
-                
-                if humanoid and humanoid.Health > 0 then
-                    
-                    -- DYNAMIC TEAM CHECK
-                    local shouldFire = true
-                    if areTeamsActive() then
-                        if LocalPlayer.Team and targetPlayer.Team and LocalPlayer.Team == targetPlayer.Team then
-                            shouldFire = false
-                        end
+            if humanoid and humanoid.Health > 0 then
+                -- DYNAMIC TEAM CHECK
+                local shouldFire = true
+                if areTeamsActive() then
+                    if LocalPlayer.Team and targetPlayer.Team and LocalPlayer.Team == targetPlayer.Team then
+                        shouldFire = false
                     end
-                    
-                    -- AUTOMATIC HOLD-TO-FIRE LOGIC
-                    if shouldFire then
-                        if not isFiring then
-                            isFiring = true
-                            if mouse1press then
-                                mouse1press() -- Holds down left click safely
-                            end
-                        end
-                    else
-                        stopFiring()
-                    end
-                else
-                    stopFiring()
                 end
-            else
-                stopFiring()
+                
+                -- INSTANT MAXIMUM CLICK SPAM (Zero delays)
+                if shouldFire and mouse1click then
+                    mouse1click()
+                end
             end
-        else
-            stopFiring()
         end
-    else
-        stopFiring()
     end
 end)
