@@ -1,12 +1,13 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Teams = game:GetService("Teams")
+local GuiService = game:GetService("GuiService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Configuration
-local FIRE_RATE_DELAY = 0.03 -- Small buffer to prevent the game engine from breaking/unequipping your tool
+-- Input simulator setup
+local VirtualInputManager = game:GetService("VirtualInputManager")
 local isFiring = false
 
 -- Helper function to determine if teams are active in the game
@@ -27,17 +28,23 @@ local function getPlayerFromTarget(targetPart)
     return nil
 end
 
--- Safely activates the tool using an isolated thread buffer
-local function safeFireTool(tool)
-    if isFiring then return end
-    isFiring = true
-    
-    -- Fire the tool natively in the engine
-    tool:Activate()
-    
-    -- Give the gun script a microscopic moment to register the shot before the next input
-    task.wait(FIRE_RATE_DELAY)
-    isFiring = false
+-- Completely safe firing mechanics utilizing hardware level hooks
+local function startFiring()
+    if not isFiring then
+        isFiring = true
+        -- Sends a direct hardware-level press down at the center of the screen
+        local center = Camera.ViewportSize / 2
+        VirtualInputManager:SendMouseButtonEvent(center.X, center.Y, 0, true, game, 0)
+    end
+end
+
+local function stopFiring()
+    if isFiring then
+        isFiring = false
+        -- Safely releases the hardware-level click
+        local center = Camera.ViewportSize / 2
+        VirtualInputManager:SendMouseButtonEvent(center.X, center.Y, 0, false, game, 0)
+    end
 end
 
 -- Pre-allocated raycast parameters for maximum performance (native wallcheck)
@@ -47,20 +54,26 @@ raycastParams.IgnoreWater = true
 
 -- Primary execution loop running at maximum engine frame rate
 RunService.RenderStepped:Connect(function()
-    if not LocalPlayer.Character then return end
+    if not LocalPlayer.Character or GuiService:GetOpenedPriorityGui() then 
+        stopFiring()
+        return 
+    end
     
-    -- Find currently equipped tool
+    -- Ensure you are holding a tool before even trying to fire
     local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
-    if not tool then return end -- If no gun is equipped, do nothing
+    if not tool then 
+        stopFiring()
+        return 
+    end
     
     -- Dynamic screen centering calculation
     local viewportSize = Camera.ViewportSize
     local unitRay = Camera:ScreenPointToRay(viewportSize.X / 2, viewportSize.Y / 2)
     
-    -- Update character to ignore dynamically
+    -- Update characters to ignore dynamically
     raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, tool}
     
-    -- Execute instantaneous wall-check raycast (Stops at the first solid physical object)
+    -- Raycast captures the absolute first solid physical asset hit (native wallcheck)
     local raycastResult = workspace:Raycast(unitRay.Origin, unitRay.Direction * 5000, raycastParams)
     
     if raycastResult and raycastResult.Instance then
@@ -79,11 +92,19 @@ RunService.RenderStepped:Connect(function()
                     end
                 end
                 
-                -- EXECUTE CONTROLLED ENGINE ACTIVATION
+                -- HARDWARE FIRE SIMULATION
                 if shouldFire then
-                    task.spawn(safeFireTool, tool)
+                    startFiring()
+                else
+                    stopFiring()
                 end
+            else
+                stopFiring()
             end
+        else
+            stopFiring()
         end
+    else
+        stopFiring()
     end
 end)
