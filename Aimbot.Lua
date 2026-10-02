@@ -6,17 +6,23 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 -- CONFIGURATION
-local HIT_CHANCE = 0.80 -- Direct 80% accuracy representation
-local TICK_RATE = 0.1   -- Checks every 0.1 seconds whether to lock on or off
-
--- State variables for the timer logic
-local isLockActive = true
-local lastTickTime = 0
+local ACCURACY_RATE = 0.80 -- Strict 80% hit accuracy decimal threshold
 
 -- Helper function to determine if teams are active in the game
 local function areTeamsActive()
     local teamList = Teams:GetTeams()
     return #teamList > 0
+end
+
+-- Safely fetches the tool and commands it to execute a programmatic fire sequence
+local function fireEquippedTool()
+    local character = LocalPlayer.Character
+    if character then
+        local tool = character:FindFirstChildOfClass("Tool")
+        if tool then
+            tool:Activate() -- Activates weapon internally bypassing mechanical driver layers
+        end
+    end
 end
 
 local function getClosestPlayerHead()
@@ -55,29 +61,21 @@ local function getClosestPlayerHead()
     return closestHead
 end
 
--- This runs every frame automatically
+-- Primary execution loop running at maximum engine frame rate
 RunService.RenderStepped:Connect(function()
     if LocalPlayer.Character then
         local targetHead = getClosestPlayerHead()
         
         if targetHead then
-            -- TIMER CHECK: Has 0.1 seconds passed since the last roll?
-            local currentTime = os.clock()
-            if currentTime - lastTickTime >= TICK_RATE then
-                lastTickTime = currentTime
-                -- Roll an independent 80% accuracy chance for this 0.1s window
-                isLockActive = (math.random() <= HIT_CHANCE)
-            end
+            -- 1. FLAWLESS 100% CONTINUOUS CAMERA HARD LOCK ON (Glued tracking)
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
             
-            -- If the 80% active state roll passes, lock onto the head instantly. 
-            -- If it lands on the 20% failure state, it drops the lock, letting you move naturally.
-            if isLockActive then
-                Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
+            -- 2. 80% ACCURACY AUTOFIT TRIGGERBOT ENGINE
+            -- Calculates a probability threshold against the 0.80 configuration marker
+            if math.random() <= ACCURACY_RATE then
+                -- 80% Case: Engine passes activation command to fire weapon tool
+                fireEquippedTool()
             end
-        else
-            -- Reset state if no target is near
-            lastTickTime = 0
-            isLockActive = true
         end
     end
 end)
