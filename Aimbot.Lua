@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Teams = game:GetService("Teams")
+local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -91,13 +92,16 @@ end
 
 -- Primary execution loop running at maximum engine frame rate
 RunService.RenderStepped:Connect(function()
-    if LocalPlayer.Character then
-        local targetHead = getClosestPlayerHead()
-        
-        if targetHead then
-            -- CAMERA LOCK ON (Only engages if the target is visible)
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
-            -- (Triggerbot functions and accuracy checks have been fully removed)
+    -- Only run the aimbot if the player is holding down the Right Mouse Button (RMB)
+    if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+        if LocalPlayer.Character then
+            local targetHead = getClosestPlayerHead()
+            
+            if targetHead then
+                -- CAMERA LOCK ON (Only engages if the target is visible)
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
+                -- (Triggerbot functions and accuracy checks have been fully removed)
+            end
         end
     end
 end)
