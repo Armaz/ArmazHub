@@ -4,7 +4,7 @@ local Teams = game:GetService("Teams")
 local LocalPlayer = Players.LocalPlayer
 
 -- SETTINGS
-local WALK_SPEED = 24
+local WALK_SPEED = 16
 
 -- Helper function to determine if teams are active in the game
 local function areTeamsActive()
