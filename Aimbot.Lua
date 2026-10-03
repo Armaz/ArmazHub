@@ -14,7 +14,7 @@ local isLockedOn = false
 
 -- Listen for the F key press to toggle the lock on/off
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == Enum.KeyCode.F then
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.MouseButton2 then
         isLockedOn = not isLockedOn
         if not isLockedOn then
             lockedPlayer = nil
