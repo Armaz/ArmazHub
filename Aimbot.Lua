@@ -6,10 +6,24 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- State variables to keep the target consistent while holding RMB
+-- State variables to keep the target consistent while active
 local lockedPlayer = nil
 local lockedPartName = nil -- "Head" or "HumanoidRootPart"
 local lockedOffset = Vector3.new(0, 0, 0)
+
+-- Toggle state for the F key
+local isLockedOn = false
+
+-- Listen for the F key press to toggle the lock on/off
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.F then
+        isLockedOn = not isLockedOn
+        if not isLockedOn then
+            lockedPlayer = nil
+            lockedPartName = nil
+        end
+    end
+end)
 
 -- Helper function to determine if teams are active in the game
 local function areTeamsActive()
@@ -127,19 +141,20 @@ local function getClosestTargetPosition()
 end
 
 -- Primary execution loop running at maximum engine frame rate
-RunService.RenderStepped:Connect(function()
-    -- Only run the aimbot if the player is holding down the Right Mouse Button (RMB)
-    if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+RunService.RenderStepped:Connect(function(dt)
+    -- Only run if the toggle is active (F has been pressed)
+    if isLockedOn then
         if LocalPlayer.Character then
             local targetPos = getClosestTargetPosition()
             
             if targetPos then
-                -- CAMERA LOCK ON (Only engages if the target is visible)
-                Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
+                -- Smoothly turn toward the target using CFrame.lerp (change '15' to speed up or slow down turning)
+                local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
+                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, math.clamp(15 * dt, 0, 1))
             end
         end
     else
-        -- Reset lock state when RMB is released
+        -- Reset lock state when toggled off
         lockedPlayer = nil
         lockedPartName = nil
     end
