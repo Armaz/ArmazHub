@@ -6,10 +6,7 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- CONFIGURATION
-local FOV_LIMIT = 3 -- 10 degrees field of view limit
-
--- State tracking to maintain stable target parts and prevent jitter from random offsets
+-- State variables to keep the target consistent while holding RMB
 local lockedPlayer = nil
 local lockedPartName = nil -- "Head" or "HumanoidRootPart"
 local lockedOffset = Vector3.new(0, 0, 0)
@@ -49,17 +46,8 @@ local function isVisible(targetPart, targetCharacter)
     return true
 end
 
--- Check if a position is within the 10-degree FOV from screen center
-local function isInFOV(position)
-    local cameraLook = Camera.CFrame.LookVector
-    local direction = (position - Camera.CFrame.Position).Unit
-    local dot = cameraLook:Dot(direction)
-    local angle = math.deg(math.acos(math.clamp(dot, -1, 1)))
-    return angle <= FOV_LIMIT
-end
-
-local function getTargetPosition()
-    local closestTargetPos = nil
+local function getClosestTargetPosition()
+    local targetPosition = nil
     local shortestDistance = math.huge
     local teamsExist = areTeamsActive()
     
@@ -90,37 +78,36 @@ local function getTargetPosition()
                 local humanoid = character:FindFirstChild("Humanoid")
                 
                 if head and rootPart and humanoid and humanoid.Health > 0 then
-                    -- If already locked onto this player, keep their chosen part, otherwise evaluate head/root
+                    -- If we are already locked onto this player, maintain their part choice
                     local testPart = head
                     if lockedPlayer == player and lockedPartName then
                         testPart = character:FindFirstChild(lockedPartName) or head
                     end
                     
-                    -- WALL / VISIBILITY & FOV CHECK
-                    if isVisible(testPart, character) and isInFOV(testPart.Position) then
+                    -- WALL / VISIBILITY CHECK: Ensure target has a clear line of sight
+                    if isVisible(testPart, character) then
                         local localChar = LocalPlayer.Character
                         if localChar and localChar:FindFirstChild("HumanoidRootPart") then
                             local distance = (localChar.HumanoidRootPart.Position - testPart.Position).Magnitude
                             if distance < shortestDistance then
                                 shortestDistance = distance
                                 
-                                -- Assign target and randomize part/offset if it's a new lock
+                                -- If switching or locking onto a new player, assign 50/50 head vs body and random offset
                                 if lockedPlayer ~= player then
                                     lockedPlayer = player
-                                    -- 50 percent chance for Head or HumanoidRootPart
                                     lockedPartName = (math.random() < 0.5) and "Head" or "HumanoidRootPart"
                                     
-                                    -- Random position offset around the part (randomized offsets across the region)
+                                    -- Minor random variance around the part so it doesn't pixel-lock dead center
                                     lockedOffset = Vector3.new(
-                                        math.random(-35, 35) / 100,
-                                        math.random(-35, 35) / 100,
-                                        math.random(-35, 35) / 100
+                                        math.random(-30, 30) / 100,
+                                        math.random(-30, 30) / 100,
+                                        math.random(-30, 30) / 100
                                     )
                                 end
                                 
-                                local actualPart = character:FindFirstChild(lockedPartName)
-                                if actualPart then
-                                    closestTargetPos = actualPart.Position + lockedOffset
+                                local finalPart = character:FindFirstChild(lockedPartName)
+                                if finalPart then
+                                    targetPosition = finalPart.Position + lockedOffset
                                 end
                             end
                         end
@@ -130,13 +117,13 @@ local function getTargetPosition()
         end
     end
     
-    -- Clear lock if no valid targets within FOV/visibility
-    if not closestTargetPos then
+    -- Clear target state if no valid player is found
+    if not targetPosition then
         lockedPlayer = nil
         lockedPartName = nil
     end
     
-    return closestTargetPos
+    return targetPosition
 end
 
 -- Primary execution loop running at maximum engine frame rate
@@ -144,15 +131,15 @@ RunService.RenderStepped:Connect(function()
     -- Only run the aimbot if the player is holding down the Right Mouse Button (RMB)
     if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
         if LocalPlayer.Character then
-            local targetPos = getTargetPosition()
+            local targetPos = getClosestTargetPosition()
             
             if targetPos then
-                -- CAMERA LOCK ON (Only engages if target is visible and inside the 10-degree FOV)
+                -- CAMERA LOCK ON (Only engages if the target is visible)
                 Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
             end
         end
     else
-        -- Reset lock when RMB is released
+        -- Reset lock state when RMB is released
         lockedPlayer = nil
         lockedPartName = nil
     end
