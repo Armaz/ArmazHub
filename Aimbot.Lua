@@ -6,22 +6,10 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- State variables
+-- State variables to keep the target consistent while holding RMB
 local lockedPlayer = nil
 local lockedPartName = nil
 local lockedOffset = Vector3.new(0, 0, 0)
-local isLockedOn = false
-
--- Listen for the E key press to toggle the lock on/off
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == Enum.KeyCode.E then
-        isLockedOn = not isLockedOn
-        if not isLockedOn then
-            lockedPlayer = nil
-            lockedPartName = nil
-        end
-    end
-end)
 
 -- Helper function to determine if teams are active
 local function areTeamsActive()
@@ -106,13 +94,16 @@ local function getClosestTargetPosition()
                             if distance < shortestDistance then
                                 shortestDistance = distance
                                 
-                                lockedPlayer = player
-                                lockedPartName = (math.random() < 0.5) and "Head" or "HumanoidRootPart"
-                                lockedOffset = Vector3.new(
-                                    math.random(-30, 30) / 100,
-                                    math.random(-30, 30) / 100,
-                                    math.random(-30, 30) / 100
-                                )
+                                if lockedPlayer ~= player then
+                                    lockedPlayer = player
+                                    lockedPartName = (math.random() < 0.5) and "Head" or "HumanoidRootPart"
+                                    
+                                    lockedOffset = Vector3.new(
+                                        math.random(-30, 30) / 100,
+                                        math.random(-30, 30) / 100,
+                                        math.random(-30, 30) / 100
+                                    )
+                                end
                                 
                                 local finalPart = character:FindFirstChild(lockedPartName)
                                 if finalPart then
@@ -134,20 +125,21 @@ local function getClosestTargetPosition()
     return targetPosition
 end
 
--- Primary execution loop
+-- Primary execution loop running at maximum engine frame rate
 RunService.RenderStepped:Connect(function(dt)
-    if isLockedOn then
+    -- Only run the aimbot while holding down the Right Mouse Button (RMB)
+    if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
         if LocalPlayer.Character then
             local targetPos = getClosestTargetPosition()
             
             if targetPos then
-                -- Smooth turn toward target 
-                -- Lowered speed multiplier from 15 to 4 so it takes about ~0.5 seconds to glide smoothly onto targets/switches
+                -- Smoothly turn toward the target using a smooth glide speed
                 local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
                 Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, math.clamp(4 * dt, 0, 1))
             end
         end
     else
+        -- Reset lock state immediately when RMB is released
         lockedPlayer = nil
         lockedPartName = nil
     end
