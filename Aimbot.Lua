@@ -12,9 +12,9 @@ local lockedPartName = nil
 local lockedOffset = Vector3.new(0, 0, 0)
 local isLockedOn = false
 
--- Listen for the F key press to toggle the lock on/off
+-- Listen for the E key press to toggle the lock on/off
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == Enum.KeyCode.MouseButton2 then
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.E then
         isLockedOn = not isLockedOn
         if not isLockedOn then
             lockedPlayer = nil
@@ -141,9 +141,10 @@ RunService.RenderStepped:Connect(function(dt)
             local targetPos = getClosestTargetPosition()
             
             if targetPos then
-                -- Smooth turn toward target (change '15' to adjust turn speed)
+                -- Smooth turn toward target 
+                -- Lowered speed multiplier from 15 to 4 so it takes about ~0.5 seconds to glide smoothly onto targets/switches
                 local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
-                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, math.clamp(15 * dt, 0, 1))
+                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, math.clamp(4 * dt, 0, 1))
             end
         end
     else
