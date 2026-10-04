@@ -135,14 +135,14 @@ RunService.RenderStepped:Connect(function(dt)
             if targetPos then
                 local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
                 
-                -- Check how far off our camera look vector is from the exact target
+                -- Increased tracking speed (25 * dt) so it keeps up while you are moving,
+                -- and widened the snap angle (0.15 radians) so it instantly locks dead-center once close.
                 local angleDifference = math.acos(math.clamp(Camera.CFrame.LookVector:Dot(targetCFrame.LookVector), -1, 1))
                 
-                -- If we are very close to being aimed directly at them (within ~2.5 degrees), snap completely dead-center to lock on. Otherwise, glide smoothly.
-                if angleDifference < 0.045 then
+                if angleDifference < 0.15 then
                     Camera.CFrame = targetCFrame
                 else
-                    Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, math.clamp(14 * dt, 0, 1))
+                    Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, math.clamp(25 * dt, 0, 1))
                 end
             end
         end
