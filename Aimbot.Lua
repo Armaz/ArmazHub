@@ -135,15 +135,8 @@ RunService.RenderStepped:Connect(function(dt)
             if targetPos then
                 local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
                 
-                -- Increased tracking speed (25 * dt) so it keeps up while you are moving,
-                -- and widened the snap angle (0.15 radians) so it instantly locks dead-center once close.
-                local angleDifference = math.acos(math.clamp(Camera.CFrame.LookVector:Dot(targetCFrame.LookVector), -1, 1))
-                
-                if angleDifference < 0.15 then
-                    Camera.CFrame = targetCFrame
-                else
-                    Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, math.clamp(25 * dt, 0, 1))
-                end
+                -- Pure fast, smooth turning using Lerp (adjust '20' up if you want it faster, or down if slower)
+                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, math.clamp(20 * dt, 0, 1))
             end
         end
     else
