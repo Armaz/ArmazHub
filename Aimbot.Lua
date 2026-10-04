@@ -10,6 +10,7 @@ local Camera = workspace.CurrentCamera
 local lockedPlayer = nil
 local lockedPartName = nil
 local lockedOffset = Vector3.new(0, 0, 0)
+local isAccurateTarget = true -- Controls the 1-in-2 hit accuracy chance
 
 -- Helper function to determine if teams are active
 local function areTeamsActive()
@@ -50,6 +51,11 @@ local function getClosestTargetPosition()
     
     -- If we already have a locked player, prioritize checking them first
     if lockedPlayer and lockedPlayer.Character and lockedPlayer.Character:FindFirstChild("Humanoid") and lockedPlayer.Character.Humanoid.Health > 0 then
+        -- If this target failed the 50% accuracy roll, don't provide aim assist for them
+        if not isAccurateTarget then
+            return nil
+        end
+        
         local character = lockedPlayer.Character
         local testPart = character:FindFirstChild(lockedPartName) or character:FindFirstChild("Head")
         
@@ -98,6 +104,9 @@ local function getClosestTargetPosition()
                                     lockedPlayer = player
                                     lockedPartName = (math.random() < 0.5) and "Head" or "HumanoidRootPart"
                                     
+                                    -- 1 out of every 2 chance (50%) to enable tracking for this target lock
+                                    isAccurateTarget = (math.random() < 0.5)
+                                    
                                     lockedOffset = Vector3.new(
                                         math.random(-30, 30) / 100,
                                         math.random(-30, 30) / 100,
@@ -105,9 +114,12 @@ local function getClosestTargetPosition()
                                     )
                                 end
                                 
-                                local finalPart = character:FindFirstChild(lockedPartName)
-                                if finalPart then
-                                    targetPosition = finalPart.Position + lockedOffset
+                                -- Only assign target position if it passed the 50% accuracy check
+                                if isAccurateTarget then
+                                    local finalPart = character:FindFirstChild(lockedPartName)
+                                    if finalPart then
+                                        targetPosition = finalPart.Position + lockedOffset
+                                    end
                                 end
                             end
                         end
@@ -136,8 +148,7 @@ RunService.RenderStepped:Connect(function(dt)
                 local currentPos = Camera.CFrame.Position
                 local goalCFrame = CFrame.new(currentPos, targetPos)
                 
-                -- Smoothly interpolate the camera's rotation toward the target goal.
-                -- Adjust '10' to change turn speed (lower = slower/smoother turn, higher = faster turn).
+                -- Smooth turning glide using Lerp
                 Camera.CFrame = Camera.CFrame:Lerp(goalCFrame, math.clamp(10 * dt, 0, 1))
             end
         end
