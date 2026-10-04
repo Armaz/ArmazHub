@@ -133,10 +133,12 @@ RunService.RenderStepped:Connect(function(dt)
             local targetPos = getClosestTargetPosition()
             
             if targetPos then
-                local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
+                -- Keep current camera position, but compute the exact rotation looking at the target
+                local goalCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
                 
-                -- Pure fast, smooth turning using Lerp (adjust '20' up if you want it faster, or down if slower)
-                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, math.clamp(20 * dt, 0, 1))
+                -- Slerp (Spherical Linear Interpolation) smoothly rotates the camera toward the target orientation.
+                -- Adjust '18' to make it faster or slower (higher = faster turn).
+                Camera.CFrame = Camera.CFrame:Slerp(goalCFrame, math.clamp(18 * dt, 0, 1))
             end
         end
     else
