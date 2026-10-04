@@ -133,21 +133,12 @@ RunService.RenderStepped:Connect(function(dt)
             local targetPos = getClosestTargetPosition()
             
             if targetPos then
-                local currentCFrame = Camera.CFrame
-                local goalCFrame = CFrame.new(currentCFrame.Position, targetPos)
+                local currentPos = Camera.CFrame.Position
+                local goalCFrame = CFrame.new(currentPos, targetPos)
                 
-                -- Calculate how far off our view is from the target
-                local dot = math.clamp(currentCFrame.LookVector:Dot(goalCFrame.LookVector), -1, 1)
-                local angleDifference = math.acos(dot)
-                
-                -- Once it gets close enough (within ~1.5 degrees), it locks solidly on target.
-                -- Otherwise, it turns smoothly at a fast, controlled speed (adjust '12' to make it faster/slower).
-                if angleDifference < 0.03 then
-                    Camera.CFrame = goalCFrame
-                else
-                    local smoothedLookVector = currentCFrame.LookVector:Lerp(goalCFrame.LookVector, math.clamp(12 * dt, 0, 1))
-                    Camera.CFrame = CFrame.new(currentCFrame.Position, currentCFrame.Position + smoothedLookVector)
-                end
+                -- Smoothly interpolate the camera's rotation toward the target goal.
+                -- Adjust '10' to change turn speed (lower = slower/smoother turn, higher = faster turn).
+                Camera.CFrame = Camera.CFrame:Lerp(goalCFrame, math.clamp(10 * dt, 0, 1))
             end
         end
     else
