@@ -35,6 +35,24 @@ local function getTeamColor(player)
     return Color3.fromRGB(255, 0, 0) -- Red
 end
 
+-- Helper to check if a player is an opposing teammate (not neutral/lobby, not on your team)
+local function isOpposingTeam(player)
+    local teamsExist = areTeamsActive()
+    if teamsExist then
+        if player.Team then
+            local teamName = player.Team.Name
+            if teamName == "Lobby" or teamName == "Neutral" then
+                return false
+            end
+        end
+        if LocalPlayer.Team and player.Team and LocalPlayer.Team == player.Team then
+            return false
+        end
+    end
+    -- If no teams exist or they are on a different team, they are opposing
+    return player ~= LocalPlayer
+end
+
 local function addOrUpdateHighlight(player, character)
     if not character then return end
 
@@ -54,6 +72,52 @@ local function addOrUpdateHighlight(player, character)
     highlight.FillColor = getTeamColor(player)
 end
 
+local function setupHealthBillboard(player, character)
+    local head = character:WaitForChild("Head", 5)
+    if not head then return end
+
+    -- Check if billboard already exists
+    local billboard = character:FindFirstChild("HealthBillboard")
+    if not billboard then
+        billboard = Instance.new("BillboardGui")
+        billboard.Name = "HealthBillboard"
+        billboard.Size = UDim2.new(0, 100, 0, 40)
+        billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+        billboard.AlwaysOnTop = true
+        
+        local textLabel = Instance.new("TextLabel")
+        textLabel.Name = "HealthLabel"
+        textLabel.Size = UDim2.new(1, 0, 1, 0)
+        textLabel.BackgroundTransparency = 1
+        textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        textLabel.TextStrokeTransparency = 0
+        textLabel.TextSize = 14
+        textLabel.Font = Enum.Font.SourceSansBold
+        textLabel.Parent = billboard
+        
+        billboard.Parent = character
+    end
+
+    local humanoid = character:WaitForChild("Humanoid", 5)
+    local textLabel = billboard:FindFirstChild("HealthLabel")
+
+    if humanoid and textLabel then
+        local function updateHealthText()
+            -- Only show health for opposing team members
+            if isOpposingTeam(player) and humanoid.Health > 0 then
+                billboard.Enabled = true
+                local healthPercent = math.clamp(math.floor((humanoid.Health / humanoid.MaxHealth) * 100 + 0.5), 0, 100)
+                textLabel.Text = healthPercent .. "%"
+            else
+                billboard.Enabled = false
+            end
+        end
+
+        humanoid.HealthChanged:Connect(updateHealthText)
+        updateHealthText()
+    end
+end
+
 local function setupCharacter(player, character)
     local humanoid = character:WaitForChild("Humanoid")
 
@@ -62,6 +126,9 @@ local function setupCharacter(player, character)
 
     -- Add or update the colored ESP highlight
     addOrUpdateHighlight(player, character)
+    
+    -- Add health percentage UI only for opposing team members
+    setupHealthBillboard(player, character)
 end
 
 Players.PlayerAdded:Connect(function(player)
