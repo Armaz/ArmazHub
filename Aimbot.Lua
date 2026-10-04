@@ -10,7 +10,7 @@ local Camera = workspace.CurrentCamera
 local lockedPlayer = nil
 local lockedPartName = nil
 local lockedOffset = Vector3.new(0, 0, 0)
-local isAccurateTarget = true -- Controls the 77.7% hit accuracy chance
+local isAccurateTarget = true -- Controls the 86% hit accuracy chance
 
 -- Helper function to determine if teams are active
 local function areTeamsActive()
@@ -51,7 +51,7 @@ local function getClosestTargetPosition()
     
     -- If we already have a locked player, prioritize checking them first
     if lockedPlayer and lockedPlayer.Character and lockedPlayer.Character:FindFirstChild("Humanoid") and lockedPlayer.Character.Humanoid.Health > 0 then
-        -- If this target failed the 77.7% accuracy roll, don't provide aim assist for them
+        -- If this target failed the 86% accuracy roll, don't provide aim assist for them
         if not isAccurateTarget then
             return nil
         end
@@ -104,8 +104,8 @@ local function getClosestTargetPosition()
                                     lockedPlayer = player
                                     lockedPartName = (math.random() < 0.5) and "Head" or "HumanoidRootPart"
                                     
-                                    -- 77.7% chance to enable tracking for this target lock
-                                    isAccurateTarget = (math.random() < 0.777)
+                                    -- 86% chance to enable tracking for this target lock
+                                    isAccurateTarget = (math.random() < 0.86)
                                     
                                     lockedOffset = Vector3.new(
                                         math.random(-30, 30) / 100,
@@ -114,7 +114,7 @@ local function getClosestTargetPosition()
                                     )
                                 end
                                 
-                                -- Only assign target position if it passed the 77.7% accuracy check
+                                -- Only assign target position if it passed the 86% accuracy check
                                 if isAccurateTarget then
                                     local finalPart = character:FindFirstChild(lockedPartName)
                                     if finalPart then
@@ -148,7 +148,7 @@ RunService.RenderStepped:Connect(function(dt)
                 local currentPos = Camera.CFrame.Position
                 local goalCFrame = CFrame.new(currentPos, targetPos)
                 
-                -- Smooth turning glide using a slightly slower Lerp speed (7 instead of 10)
+                -- Smooth turning glide using a slower Lerp speed (7)
                 Camera.CFrame = Camera.CFrame:Lerp(goalCFrame, math.clamp(7 * dt, 0, 1))
             end
         end
