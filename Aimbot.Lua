@@ -135,8 +135,15 @@ RunService.RenderStepped:Connect(function(dt)
             if targetPos then
                 local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
                 
-                -- Smoothly interpolate rotation (slerp) so it starts slow/smooth and snaps solidly onto the target look vector
-                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, math.clamp(12 * dt, 0, 1))
+                -- Check how far off our camera look vector is from the exact target
+                local angleDifference = math.acos(math.clamp(Camera.CFrame.LookVector:Dot(targetCFrame.LookVector), -1, 1))
+                
+                -- If we are very close to being aimed directly at them (within ~2.5 degrees), snap completely dead-center to lock on. Otherwise, glide smoothly.
+                if angleDifference < 0.045 then
+                    Camera.CFrame = targetCFrame
+                else
+                    Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, math.clamp(14 * dt, 0, 1))
+                end
             end
         end
     else
