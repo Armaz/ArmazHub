@@ -104,7 +104,7 @@ local function setupHealthBillboard(player, character)
         textLabel.Name = "HealthLabel"
         textLabel.Size = UDim2.new(1, 0, 1, 0)
         textLabel.BackgroundTransparency = 1
-        textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        textLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
         textLabel.TextStrokeTransparency = 0
         textLabel.TextSize = 18 -- Increased size
         textLabel.Font = Enum.Font.SourceSansBold
