@@ -81,31 +81,17 @@ local function setupHealthBillboard(player, character)
     if not billboard then
         billboard = Instance.new("BillboardGui")
         billboard.Name = "HealthBillboard"
-        billboard.Size = UDim2.new(0, 120, 0, 50)
-        billboard.StudsOffset = Vector3.new(0, 2.8, 0)
+        billboard.Size = UDim2.new(0, 100, 0, 40)
+        billboard.StudsOffset = Vector3.new(0, 2.5, 0)
         billboard.AlwaysOnTop = true
         
-        -- Green background fill frame for the health display
-        local fillFrame = Instance.new("Frame")
-        fillFrame.Name = "FillFrame"
-        fillFrame.Size = UDim2.new(1, 0, 0, 24)
-        fillFrame.Position = UDim2.new(0, 0, 0.5, -12)
-        fillFrame.BackgroundColor3 = Color3.fromRGB(0, 200, 0) -- Green fill color
-        fillFrame.BorderSizePixel = 0
-        
-        local uiCorner = Instance.new("UICorner")
-        uiCorner.CornerRadius = UDim.new(0, 4)
-        uiCorner.Parent = fillFrame
-        
-        fillFrame.Parent = billboard
-        
-        -- Bigger text label for the percentage
+        -- Bigger text label for the percentage with green text color
         local textLabel = Instance.new("TextLabel")
         textLabel.Name = "HealthLabel"
         textLabel.Size = UDim2.new(1, 0, 1, 0)
         textLabel.BackgroundTransparency = 1
-        textLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-        textLabel.TextStrokeTransparency = 0
+        textLabel.TextColor3 = Color3.fromRGB(0, 255, 0) -- Green text color
+        textLabel.TextStrokeTransparency = 0 -- Keeps outline clean/readable
         textLabel.TextSize = 18 -- Increased size
         textLabel.Font = Enum.Font.SourceSansBold
         textLabel.Parent = billboard
@@ -115,18 +101,14 @@ local function setupHealthBillboard(player, character)
 
     local humanoid = character:WaitForChild("Humanoid", 5)
     local textLabel = billboard:FindFirstChild("HealthLabel")
-    local fillFrame = billboard:FindFirstChild("FillFrame")
 
-    if humanoid and textLabel and fillFrame then
+    if humanoid and textLabel then
         local function updateHealthText()
             -- Only show health for opposing team members
             if isOpposingTeam(player) and humanoid.Health > 0 then
                 billboard.Enabled = true
                 local healthPercent = math.clamp(math.floor((humanoid.Health / humanoid.MaxHealth) * 100 + 0.5), 0, 100)
                 textLabel.Text = healthPercent .. "%"
-                
-                -- Dynamically scale the green fill frame width based on health percentage
-                fillFrame.Size = UDim2.new(healthPercent / 100, 0, 0, 24)
             else
                 billboard.Enabled = false
             end
