@@ -133,9 +133,10 @@ RunService.RenderStepped:Connect(function(dt)
             local targetPos = getClosestTargetPosition()
             
             if targetPos then
-                -- Smoothly turn toward the target using a smooth glide speed
                 local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
-                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, math.clamp(4 * dt, 0, 1))
+                
+                -- Smoothly interpolate rotation (slerp) so it starts slow/smooth and snaps solidly onto the target look vector
+                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, math.clamp(12 * dt, 0, 1))
             end
         end
     else
