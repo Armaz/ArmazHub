@@ -99,9 +99,9 @@ local function getClosestTargetPosition()
                                     lockedPartName = (math.random() < 0.5) and "Head" or "HumanoidRootPart"
                                     
                                     lockedOffset = Vector3.new(
-                                        math.random(-30, 30) / 100,
-                                        math.random(-30, 30) / 100,
-                                        math.random(-30, 30) / 100
+                                        math.random(-20, 20) / 100,
+                                        math.random(-20, 20) / 100,
+                                        math.random(-20, 20) / 100
                                     )
                                 end
                                 
@@ -136,8 +136,8 @@ RunService.RenderStepped:Connect(function(dt)
                 local currentPos = Camera.CFrame.Position
                 local goalCFrame = CFrame.new(currentPos, targetPos)
                 
-                -- Smooth turning glide using a Lerp speed (7)
-                Camera.CFrame = Camera.CFrame:Lerp(goalCFrame, math.clamp(7 * dt, 0, 1))
+                -- Increased Lerp speed (18) for a fast, smooth glide that locks firmly onto the target
+                Camera.CFrame = Camera.CFrame:Lerp(goalCFrame, math.clamp(18 * dt, 0, 1))
             end
         end
     else
