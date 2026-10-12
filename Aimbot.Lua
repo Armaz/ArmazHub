@@ -98,10 +98,11 @@ local function getClosestTargetPosition()
                                     lockedPlayer = player
                                     lockedPartName = (math.random() < 0.5) and "Head" or "HumanoidRootPart"
                                     
+                                    -- Minimal offset so it snaps squarely onto the target
                                     lockedOffset = Vector3.new(
-                                        math.random(-20, 20) / 100,
-                                        math.random(-20, 20) / 100,
-                                        math.random(-20, 20) / 100
+                                        math.random(-10, 10) / 100,
+                                        math.random(-10, 10) / 100,
+                                        math.random(-10, 10) / 100
                                     )
                                 end
                                 
@@ -136,8 +137,10 @@ RunService.RenderStepped:Connect(function(dt)
                 local currentPos = Camera.CFrame.Position
                 local goalCFrame = CFrame.new(currentPos, targetPos)
                 
-                -- Increased Lerp speed (18) for a fast, smooth glide that locks firmly onto the target
-                Camera.CFrame = Camera.CFrame:Lerp(goalCFrame, math.clamp(18 * dt, 0, 1))
+                -- Using a much higher interpolation factor with a fallback to snap when close,
+                -- ensuring it glides in fast and locks completely onto the player.
+                local alpha = math.clamp(35 * dt, 0, 1)
+                Camera.CFrame = Camera.CFrame:Lerp(goalCFrame, alpha)
             end
         end
     else
