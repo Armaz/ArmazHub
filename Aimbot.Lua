@@ -10,7 +10,6 @@ local Camera = workspace.CurrentCamera
 local lockedPlayer = nil
 local lockedPartName = nil
 local lockedOffset = Vector3.new(0, 0, 0)
-local isAccurateTarget = true -- Controls the 93% hit accuracy chance
 
 -- Helper function to determine if teams are active
 local function areTeamsActive()
@@ -51,11 +50,6 @@ local function getClosestTargetPosition()
     
     -- If we already have a locked player, prioritize checking them first
     if lockedPlayer and lockedPlayer.Character and lockedPlayer.Character:FindFirstChild("Humanoid") and lockedPlayer.Character.Humanoid.Health > 0 then
-        -- If this target failed the 93% accuracy roll, don't provide aim assist for them
-        if not isAccurateTarget then
-            return nil
-        end
-        
         local character = lockedPlayer.Character
         local testPart = character:FindFirstChild(lockedPartName) or character:FindFirstChild("Head")
         
@@ -104,9 +98,6 @@ local function getClosestTargetPosition()
                                     lockedPlayer = player
                                     lockedPartName = (math.random() < 0.5) and "Head" or "HumanoidRootPart"
                                     
-                                    -- 93% chance (93 out of 100 shots) to enable tracking for this target lock
-                                    isAccurateTarget = (math.random() < 0.93)
-                                    
                                     lockedOffset = Vector3.new(
                                         math.random(-30, 30) / 100,
                                         math.random(-30, 30) / 100,
@@ -114,12 +105,9 @@ local function getClosestTargetPosition()
                                     )
                                 end
                                 
-                                -- Only assign target position if it passed the 93% accuracy check
-                                if isAccurateTarget then
-                                    local finalPart = character:FindFirstChild(lockedPartName)
-                                    if finalPart then
-                                        targetPosition = finalPart.Position + lockedOffset
-                                    end
+                                local finalPart = character:FindFirstChild(lockedPartName)
+                                if finalPart then
+                                    targetPosition = finalPart.Position + lockedOffset
                                 end
                             end
                         end
@@ -139,7 +127,7 @@ end
 
 -- Primary execution loop running at maximum engine frame rate
 RunService.RenderStepped:Connect(function(dt)
-    -- Only run the aimbot while holding down the Right Mouse Button (RMB)
+    -- Only run while holding down the Right Mouse Button (RMB)
     if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
         if LocalPlayer.Character then
             local targetPos = getClosestTargetPosition()
@@ -148,7 +136,7 @@ RunService.RenderStepped:Connect(function(dt)
                 local currentPos = Camera.CFrame.Position
                 local goalCFrame = CFrame.new(currentPos, targetPos)
                 
-                -- Smooth turning glide using a slower Lerp speed (7)
+                -- Smooth turning glide using a Lerp speed (7)
                 Camera.CFrame = Camera.CFrame:Lerp(goalCFrame, math.clamp(7 * dt, 0, 1))
             end
         end
