@@ -17,32 +17,6 @@ local function areTeamsActive()
     return #teamList > 0
 end
 
--- Line of sight check using Raycasting
-local function isVisible(targetPart, targetCharacter)
-    local origin = Camera.CFrame.Position
-    local direction = (targetPart.Position - origin)
-    
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-    raycastParams.IgnoreWater = true
-    
-    local ignoreList = {}
-    if LocalPlayer.Character then
-        table.insert(ignoreList, LocalPlayer.Character)
-    end
-    raycastParams.FilterDescendantsInstances = ignoreList
-    
-    local result = workspace:Raycast(origin, direction, raycastParams)
-    if result then
-        if result.Instance:IsDescendantOf(targetCharacter) then
-            return true
-        end
-        return false
-    end
-    
-    return true
-end
-
 local function getClosestTargetPosition()
     local targetPosition = nil
     local shortestDistance = math.huge
@@ -53,7 +27,7 @@ local function getClosestTargetPosition()
         local character = lockedPlayer.Character
         local testPart = character:FindFirstChild(lockedPartName) or character:FindFirstChild("Head")
         
-        if testPart and isVisible(testPart, character) then
+        if testPart then
             local localChar = LocalPlayer.Character
             if localChar and localChar:FindFirstChild("HumanoidRootPart") then
                 local finalPart = character:FindFirstChild(lockedPartName)
@@ -87,29 +61,27 @@ local function getClosestTargetPosition()
                 local humanoid = character:FindFirstChild("Humanoid")
                 
                 if head and rootPart and humanoid and humanoid.Health > 0 then
-                    if isVisible(head, character) then
-                        local localChar = LocalPlayer.Character
-                        if localChar and localChar:FindFirstChild("HumanoidRootPart") then
-                            local distance = (localChar.HumanoidRootPart.Position - head.Position).Magnitude
-                            if distance < shortestDistance then
-                                shortestDistance = distance
+                    local localChar = LocalPlayer.Character
+                    if localChar and localChar:FindFirstChild("HumanoidRootPart") then
+                        local distance = (localChar.HumanoidRootPart.Position - head.Position).Magnitude
+                        if distance < shortestDistance then
+                            shortestDistance = distance
+                            
+                            if lockedPlayer ~= player then
+                                lockedPlayer = player
+                                lockedPartName = (math.random() < 0.5) and "Head" or "HumanoidRootPart"
                                 
-                                if lockedPlayer ~= player then
-                                    lockedPlayer = player
-                                    lockedPartName = (math.random() < 0.5) and "Head" or "HumanoidRootPart"
-                                    
-                                    -- Minimal offset so it snaps squarely onto the target
-                                    lockedOffset = Vector3.new(
-                                        math.random(-10, 10) / 100,
-                                        math.random(-10, 10) / 100,
-                                        math.random(-10, 10) / 100
-                                    )
-                                end
-                                
-                                local finalPart = character:FindFirstChild(lockedPartName)
-                                if finalPart then
-                                    targetPosition = finalPart.Position + lockedOffset
-                                end
+                                -- Minimal offset so it snaps squarely onto the target
+                                lockedOffset = Vector3.new(
+                                    math.random(-10, 10) / 100,
+                                    math.random(-10, 10) / 100,
+                                    math.random(-10, 10) / 100
+                                )
+                            end
+                            
+                            local finalPart = character:FindFirstChild(lockedPartName)
+                            if finalPart then
+                                targetPosition = finalPart.Position + lockedOffset
                             end
                         end
                     end
